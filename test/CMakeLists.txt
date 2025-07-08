@@ -69,7 +69,7 @@ foreach(name ${TARGETS_IDIOMATIC_EXAMPLES})
   target_link_libraries(
       ${name} 
       Catch2::Catch2WithMain
-      flarm::flarm
+      flarm
       etl)
 
   add_test(NAME ${name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${name})

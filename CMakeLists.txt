@@ -27,7 +27,7 @@ endif()
 
 # Library source files
 file(GLOB_RECURSE FLARM_SOURCES CONFIGURE_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/flarm/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/flarm/*.cpp
 )
 
 # This allows users which use the add_subdirectory or FetchContent

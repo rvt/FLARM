@@ -1,4 +1,4 @@
-#include "lib_crc.hpp"
+#include "flarm/lib_crc.hpp"
 
 #if defined(ESP8266) || defined(ESP32) || defined(__ASR6501__)
 #include <pgmspace.h>

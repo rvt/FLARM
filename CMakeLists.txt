@@ -38,10 +38,11 @@ add_library(${PROJECT_NAME} STATIC ${FLARM_SOURCES})
 
 include(GNUInstallDirs)
 
-target_include_directories(${PROJECT_NAME} ${INCLUDE_SPECIFIER} INTERFACE
+target_include_directories(${PROJECT_NAME} ${INCLUDE_SPECIFIER}
+    PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-        )
+)
 
 target_link_libraries(${PROJECT_NAME} INTERFACE)
 

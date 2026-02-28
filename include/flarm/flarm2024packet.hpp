@@ -15,7 +15,7 @@ class Flarm2024Packet
     static constexpr uint8_t BTEA_N = 4;
     static constexpr uint8_t BTEA_ROUNDS = 6;
 
-// Based on https://github.com/creaktive/flare/blob/master/flarm_decode.c
+    // Based on https://github.com/creaktive/flare/blob/master/flarm_decode.c
 
 #pragma pack(push, 4)
     struct RadioPacket
@@ -38,7 +38,7 @@ class Flarm2024Packet
         uint16_t turnRateRaw : 9;              // Bits 128-136: turn rate, degs/sec times 20, enscaled(6,2), signed
         uint16_t groundSpeedRaw : 10;          // Bits 137-146: horizontal speed, m/s times 10, enscaled(8,2)
         uint16_t verticalSpeedRaw : 9;         // Bits 147-155: vertical speed, m/s times 10, enscaled(6,2), signed
-        uint16_t groundTrackRaw : 10;               // Bits 156-165: groundTrack direction, degrees (0-360) times 2
+        uint16_t groundTrackRaw : 10;          // Bits 156-165: groundTrack direction, degrees (0-360) times 2
         uint8_t movementStatusRaw : 2;         // Bits 166-167: 2-bit integer for movement status
         uint8_t gnssHorizontalAccuracyRaw : 6; // Bits 168-173: GNSS horizontal accuracy, meters times 10, enscaled(3,3)
         uint8_t gnssVerticalAccuracyRaw : 5;   // Bits 174-178: GNSS vertical accuracy, meters times 4, enscaled(2,3)
@@ -55,8 +55,8 @@ public:
         float latitude;
         float longitude;
     };
-    static constexpr uint8_t TOTAL_LENGTH = 24 + 2;                     // Packet length with CRC
-    static constexpr uint8_t TOTAL_LENGTH_WORDS = TOTAL_LENGTH / 4 + 1; // Packet length with CRC
+    static constexpr uint8_t TOTAL_LENGTH = 24 + 2;                       // Packet length with CRC
+    static constexpr uint8_t TOTAL_LENGTH_WORDS = (TOTAL_LENGTH + 3) / 4; // Packet length with CRC
 
 private:
     RadioPacket packet;
@@ -97,7 +97,7 @@ public:
         }
 
         // Generate the data again to test if both are the same
-        uint32_t newData[TOTAL_LENGTH_WORDS] = {};
+        uint8_t newData[TOTAL_LENGTH] = {};
         packet.writeToBuffer(epoch, newData);
 
         for (auto i = 0; i < TOTAL_LENGTH_WORDS; i++)
@@ -352,19 +352,14 @@ public:
         return -3;
     }
 
-    int8_t writeToBuffer(uint32_t epochSeconds, etl::span<uint32_t> buffer)
+    int8_t writeToBuffer(uint32_t epochSeconds, uint8_t *buffer)
     {
-        if (buffer.size() != TOTAL_LENGTH_WORDS)
-        {
-            // Length must be 7 words
-            return -2;
-        }
+        uint32_t *buff32 = reinterpret_cast<uint32_t *>(buffer);
+        etl::mem_copy(reinterpret_cast<uint8_t *>(&packet), TOTAL_LENGTH, buffer);
+        scramble(buff32, epochSeconds);
+        bteaEncode(buff32 + 2);
 
-        memcpy(buffer.data(), &packet, TOTAL_LENGTH);
-        scramble(buffer.data(), epochSeconds);
-        bteaEncode(buffer.data() + 2);
-
-        uint16_t calculatedChecksum = flarmCalculateChecksum(reinterpret_cast<const uint8_t *>(buffer.data()), TOTAL_LENGTH - 2); // -2 because we do not want to calculate the CRC
+        uint16_t calculatedChecksum = flarmCalculateChecksum(buffer, TOTAL_LENGTH - 2); // -2 because we do not want to calculate the CRC
         buffer[6] = swapBytes16(calculatedChecksum);
 
         return 0;

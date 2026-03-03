@@ -2,12 +2,12 @@ cmake_minimum_required(VERSION 3.18)
 project(tests)
 include(FetchContent)
 include(CTest)
-enable_testing()
 message(STATUS "Building tests.")
 
 option(ENABLE_COVERAGE "Enable code coverage" OFF)
 
 add_definitions(-DCATCH_CONFIG_NO_POSIX_SIGNALS)
+add_definitions(-DUNIT_TESTING)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
@@ -25,7 +25,6 @@ if(NOT etl_POPULATED)
     add_subdirectory(${etl_SOURCE_DIR} ${etl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-
 # Pull in the Catch2 framework.
 FetchContent_Declare(
   Catch2
@@ -35,7 +34,7 @@ FetchContent_MakeAvailable(Catch2)
 
 # These examples use the standard separate compilation
 set(SOURCES_IDIOMATIC_EXAMPLES # Tests
-  flarm2024packet_test.cpp
+  flarm2024packet_tests.cpp
 )
 
 string(REPLACE ".cpp" "" BASENAMES_IDIOMATIC_EXAMPLES
@@ -64,15 +63,17 @@ endif()
 
 if(NOT ENABLE_COVERAGE)
 foreach(name ${TARGETS_IDIOMATIC_EXAMPLES})
-  add_executable(${name} ${name}.cpp ../include/flarm/lib_crc.cpp)
+  add_executable(${name} ${name}.cpp ../src/flarm/lib_crc.cpp)
+  
+target_compile_definitions(${name} PUBLIC ETL_NO_EXCEPTIONS=0)
 
   target_link_libraries(
       ${name} 
       Catch2::Catch2WithMain
-      flarm
+      flarm::flarm
       etl)
 
-  add_test(NAME ${name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${name})
+  add_test(NAME ${name} COMMAND ${name})
 endforeach()
 endif()
 

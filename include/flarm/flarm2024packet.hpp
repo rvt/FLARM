@@ -97,14 +97,18 @@ public:
         }
 
         // Generate the data again to test if both are the same
-        uint8_t newData[TOTAL_LENGTH] = {};
-        packet.writeToBuffer(epoch, newData);
+        uint8_t out8[TOTAL_LENGTH] = {};
+        auto out32 = etl::span<uint32_t>(reinterpret_cast<uint32_t *>(out8), TOTAL_LENGTH / sizeof(uint32_t));
+        etl::fill_n(out32.begin(), out32.size(), 0x00);
 
+        packet.writeToBuffer(epoch, out8);
+
+        printf("\n");
         for (auto i = 0; i < TOTAL_LENGTH_WORDS; i++)
         {
-            if (data[i] != newData[i])
+            if (data[i] != out32[i])
             {
-                printf("!!! %8X %8X ", data[i], newData[i]);
+                printf("!!! %u: 0x%08X != 0x%08X \n", i, data[i], out32[i]);
                 return -6;
             }
         }
@@ -199,53 +203,97 @@ public:
     {
         if (latitude < 0.f)
         {
-            packet.latitudeRaw = (uint32_t)(-(((int32_t)(-latitude * 1e7) + 26.f) / 52.f)) & 0x0FFFFF;
+            packet.latitudeRaw = -((static_cast<int32_t>(-latitude * 1e7f) + 26) / 52);
         }
         else
         {
-            packet.latitudeRaw = (uint32_t)((((uint32_t)(latitude * 1e7) + 26.f) / 52.f)) & 0x0FFFFF;
+            packet.latitudeRaw = (static_cast<int32_t>(latitude * 1e7f) + 26) / 52;
         }
 
         auto divisor = lonDivisor(latitude);
         if (longitude < 0.f)
         {
-            packet.longitudeRaw = (uint32_t)(-(((int32_t)(-longitude * 1e7) + (divisor >> 1)) / divisor)) & 0x0FFFFF;
+            packet.longitudeRaw = -((static_cast<int32_t>(-longitude * 1e7f) + (divisor >> 1)) / divisor);
         }
         else
         {
-            packet.longitudeRaw = (((uint32_t)(longitude * 1e7) + (divisor >> 1)) / divisor) & 0x0FFFFF;
+            packet.longitudeRaw = (static_cast<int32_t>(longitude * 1e7f) + (divisor >> 1)) / divisor;
         }
     }
 
     LatLon getPosition(float ownLatitude, float ownLongitude) const
     {
-        // Calculate rounded latitude
-        int32_t ownLatInt = static_cast<int32_t>(ownLatitude * 1e7);
-        int32_t round_lat = (ownLatInt + (ownLatInt < 0 ? -26 : 26)) / 52;
+        // ----- Latitude rounding (match original exactly) -----
+        int32_t round_lat;
+        if (ownLatitude < 0.0f)
+        {
+            round_lat = -((static_cast<int32_t>(-ownLatitude * 1e7f) + 26) / 52);
+        }
+        else
+        {
+            round_lat = (static_cast<int32_t>(ownLatitude * 1e7f) + 26) / 52;
+        }
 
-        // Adjust latitude
         int32_t ilat = (packet.latitudeRaw - round_lat) & 0x0FFFFF;
         if (ilat >= 0x080000)
         {
             ilat -= 0x100000;
         }
+
         float aircraftLat = static_cast<float>((ilat + round_lat) * 52) * 1e-7f;
 
-        // Calculate rounded longitude
-        int lonDiv = lonDivisor(aircraftLat);
-        int32_t ownLonInt = static_cast<int32_t>(ownLongitude * 1e7);
-        int32_t round_lon = (ownLonInt + (ownLonInt < 0 ? -(lonDiv >> 1) : (lonDiv >> 1))) / lonDiv;
+        // ----- Longitude rounding (match original exactly) -----
+        int lonDiv = lonDivisor(static_cast<int>(fabsf(aircraftLat)));
 
-        // Adjust longitude
+        int32_t round_lon;
+        if (ownLongitude < 0.0f)
+        {
+            round_lon = -((static_cast<int32_t>(-ownLongitude * 1e7f) + (lonDiv >> 1)) / lonDiv);
+        }
+        else
+        {
+            round_lon = (static_cast<int32_t>(ownLongitude * 1e7f) + (lonDiv >> 1)) / lonDiv;
+        }
+
         int32_t ilon = (packet.longitudeRaw - round_lon) & 0x0FFFFF;
         if (ilon >= 0x080000)
         {
             ilon -= 0x0100000;
         }
+
         float aircraftLon = static_cast<float>((ilon + round_lon) * lonDiv) * 1e-7f;
 
         return {aircraftLat, aircraftLon};
     }
+
+    //    float ref_lat = this_aircraft->latitude;
+    //    float ref_lon = this_aircraft->longitude;
+    //  int32_t round_lat;
+    //     // if (ref_lat < 0.0)
+    //     //     round_lat = -(((int32_t) (-ref_lat * 1e7) + 26) / 52);
+    //     // else
+    //     //     round_lat = ((int32_t) (ref_lat * 1e7) + 26) / 52;
+
+    //     int32_t ilat = pkt->lat;
+    //     ilat = (ilat - round_lat) & 0x0FFFFF;
+    //     if (ilat >= 0x080000) ilat -= 0x100000;
+    //     float lat = (float)((ilat + round_lat) * 52) * 1e-7;
+    // //Serial.printf("latitude: %f\n", lat);
+    //     fop->latitude = lat;
+
+    //     int d = londiv((int)fabs(lat));
+
+    //     int32_t round_lon;
+    //     if (ref_lon < 0.0)
+    //         round_lon = -(((int32_t) (-ref_lon * 1e7) + (d>>1)) / d);
+    //     else
+    //         round_lon = ((int32_t) (ref_lon * 1e7) + (d>>1)) / d;
+    //     int32_t ilon = pkt->lon;
+    //     ilon = (ilon - round_lon) & 0x0FFFFF;
+    //     if (ilon >= 0x080000) ilon -= 0x0100000;
+    //     float lon = (float)((ilon + round_lon) * d) * 1e-7;
+    // //Serial.printf("longitude: %f\n", lon);
+    //     fop->longitude = lon;
 
     float turnRate() const
     {
@@ -354,13 +402,14 @@ public:
 
     int8_t writeToBuffer(uint32_t epochSeconds, uint8_t *buffer)
     {
-        uint32_t *buff32 = reinterpret_cast<uint32_t *>(buffer);
         etl::mem_copy(reinterpret_cast<uint8_t *>(&packet), TOTAL_LENGTH, buffer);
+        uint32_t *buff32 = reinterpret_cast<uint32_t *>(buffer);
+
         scramble(buff32, epochSeconds);
         bteaEncode(buff32 + 2);
 
         uint16_t calculatedChecksum = flarmCalculateChecksum(buffer, TOTAL_LENGTH - 2); // -2 because we do not want to calculate the CRC
-        buffer[6] = swapBytes16(calculatedChecksum);
+        buff32[6] = swapBytes16(calculatedChecksum);
 
         return 0;
     }

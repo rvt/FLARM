@@ -31,7 +31,10 @@ else()
     set(INCLUDE_SPECIFIER "SYSTEM")
 endif()
 
-add_library(${PROJECT_NAME} INTERFACE)
+add_library(${PROJECT_NAME}  STATIC
+    src/flarm/lib_crc.cpp
+)
+
 # This allows users which use the add_subdirectory or FetchContent
 # to use the same target as users which use find_package
 add_library(flarm::flarm ALIAS ${PROJECT_NAME})

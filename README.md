@@ -1,6 +1,6 @@
 # FLARM Library
 
-Both examples codes come from the GA/TAS project so essentially this library only contains `Flarm2024Packet packet`
+Both examples codes come from the GATAS project so essentially this library only contains `Flarm2024Packet packet`
 But I think the example speak for themselse fairly well.
 
 > The code and decryption routines were originally sourced from Pastebin and have been used under the assumption of fair use. I firmly believe that anti-collision protocols—especially in aviation, where human lives are at stake and diverse systems must coexist—should be open and freely accessible. In safety-critical domains like this, transparency and interoperability are not optional; they are essential. Ensuring that such protocols are available to both hobbyists and professionals alike contributes directly to a safer airspace for everyone.

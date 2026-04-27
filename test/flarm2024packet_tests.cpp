@@ -2,23 +2,13 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <cstring>
+
 #define private public
 
 #include "../include/flarm/flarm2024packet.hpp"
 
-#include <stdio.h>
-
-// #include "flarm_utils.hpp"
-// #include "flarm2024.hpp"
-// #include "ace/ognconv.hpp"
-
 Flarm2024Packet packet;
-
-TEST_CASE("selfCheck", "[single-file]")
-{
-    printf("############ %x ###### ", Flarm2024Packet::selfCheck());
-    REQUIRE(0 == Flarm2024Packet::selfCheck());
-}
 
 TEST_CASE("Altitude", "[single-file]")
 {
@@ -29,6 +19,26 @@ TEST_CASE("Altitude", "[single-file]")
 
     packet.aircraftId(0x12234567);
     REQUIRE(0x00234567 == packet.aircraftId());
+}
+
+TEST_CASE("selfCheck", "[single-file]")
+{
+    constexpr uint8_t SelfCheckInput[Flarm2024Packet::TOTAL_LENGTH] = {
+        0x56, 0x34, 0x12, 0x12, 0x00, 0x00, 0x00, 0x33, 0x64, 0x83, 0x01, 0xBD,
+        0x01, 0xD2, 0xF0, 0x70, 0x2E, 0x4B, 0xED, 0x62, 0x83, 0x76, 0x50, 0xB6,
+        0x1C, 0xE3};
+
+    Flarm2024Packet localPacket;
+    uint8_t input[Flarm2024Packet::TOTAL_LENGTH];
+    uint8_t error[Flarm2024Packet::TOTAL_LENGTH] = {};
+    uint8_t output[Flarm2024Packet::TOTAL_LENGTH] = {};
+
+    std::memcpy(input, SelfCheckInput, Flarm2024Packet::TOTAL_LENGTH);
+
+    REQUIRE(localPacket.loadFromBuffer(1751789240, {input, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 0);
+
+    localPacket.writeToBuffer(1751789240, output);
+    REQUIRE(0 == std::memcmp(SelfCheckInput, output, Flarm2024Packet::TOTAL_LENGTH));
 }
 
 TEST_CASE("messageType", "[single-file]")
@@ -148,6 +158,39 @@ TEST_CASE("groundTrack", "[single-file]")
 
     packet.groundTrack(181.6f);
     REQUIRE(Catch::Approx(181.6f).margin(0.5) == packet.groundTrack());
+}
+
+TEST_CASE("loadFromBuffer corrects a single flipped bit", "[single-file]")
+{
+    Flarm2024Packet localPacket;
+    uint8_t data[] = {
+        0x56, 0x34, 0x12, 0x12, 0x00, 0x00, 0x00, 0x33, 0x64, 0x83, 0x01, 0xBD,
+        0x01, 0xD2, 0xF0, 0x70, 0x2E, 0x4B, 0xED, 0x62, 0x83, 0x76, 0x50, 0xB6,
+        0x1C, 0xE3};
+    uint8_t error[Flarm2024Packet::TOTAL_LENGTH] = {};
+    data[3] ^= 0x80;
+
+    REQUIRE(localPacket.loadFromBuffer(1751789240, {data, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 0);
+
+    auto pos = localPacket.getPosition(53, 5);
+    REQUIRE(Catch::Approx(52.314239).margin(0.001) == pos.latitude);
+    REQUIRE(Catch::Approx(4.754224).margin(0.001) == pos.longitude);
+}
+
+TEST_CASE("loadFromBuffer accepts a one second epoch offset", "[single-file]")
+{
+    Flarm2024Packet localPacket;
+    uint8_t data[] = {
+        0x56, 0x34, 0x12, 0x12, 0x00, 0x00, 0x00, 0x33, 0x64, 0x83, 0x01, 0xBD,
+        0x01, 0xD2, 0xF0, 0x70, 0x2E, 0x4B, 0xED, 0x62, 0x83, 0x76, 0x50, 0xB6,
+        0x1C, 0xE3};
+    uint8_t error[Flarm2024Packet::TOTAL_LENGTH] = {};
+
+    REQUIRE(localPacket.loadFromBuffer(1751789242, {data, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 0);
+
+    auto pos = localPacket.getPosition(53, 5);
+    REQUIRE(Catch::Approx(52.314239).margin(0.001) == pos.latitude);
+    REQUIRE(Catch::Approx(4.754224).margin(0.001) == pos.longitude);
 }
 
 TEST_CASE("movementStatus", "[single-file]")

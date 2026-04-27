@@ -46,7 +46,7 @@ msg.frame is an `uint32_t frame[7]`, this usually comes from your tranceiver.
 
     Flarm2024Packet packet;
     auto ownship = ownshipPosition.load(etl::memory_order_acquire);
-    auto result = packet.loadFromBuffer(epochSeconds, {frame, Flarm2024Packet::TOTAL_LENGTH_WORDS});
+    auto result = packet.loadFromBuffer(epochSeconds, {frame, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH});
     if (result == -1) {
         statistics.crcErr++;
         return;

@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <algorithm>
 
-#include "lib_crc.hpp"
+#include "errorCorrect.hpp"
 
 class Flarm2024Packet
 {
@@ -71,49 +71,6 @@ public:
         packet.reserved5Raw = 0x00;
         packet.unknownDataRaw = 11;
         packet.reserved8Raw = 0x00;
-    }
-
-    /**
-     * @brief Self test decripting packet structure. Use this to test your platform
-     *
-     * @return int8_t value from loadFromBuffer, or -5 if the lat/lon are not as expected
-     */
-    static int8_t selfCheck()
-    {
-        assert(sizeof(RadioPacket) == 28); // It's 28 because of word alignment
-        Flarm2024Packet packet;
-        uint32_t epoch = 1751789240;
-        uint32_t data[TOTAL_LENGTH_WORDS] = {0x12123456, 0x33000000, 0xBD018364, 0x70F0D201, 0x62ED4B2E, 0xB6507683, 0x0000E31C};
-
-        auto lfbRet = packet.loadFromBuffer(epoch, {data, TOTAL_LENGTH_WORDS});
-        auto pos = packet.getPosition(53, 5);
-        if (lfbRet != 0)
-        {
-            return lfbRet;
-        }
-        else if (pos.latitude - 52.314239 > 0.001 || pos.longitude - 4.754224 > 0.001)
-        {
-            return -5;
-        }
-
-        // Generate the data again to test if both are the same
-        uint8_t out8[TOTAL_LENGTH] = {};
-        auto out32 = etl::span<uint32_t>(reinterpret_cast<uint32_t *>(out8), TOTAL_LENGTH / sizeof(uint32_t));
-        etl::fill_n(out32.begin(), out32.size(), 0x00);
-
-        packet.writeToBuffer(epoch, out8);
-
-        printf("\n");
-        for (auto i = 0; i < TOTAL_LENGTH_WORDS; i++)
-        {
-            if (data[i] != out32[i])
-            {
-                printf("!!! %u: 0x%08X != 0x%08X \n", i, data[i], out32[i]);
-                return -6;
-            }
-        }
-
-        return 0;
     }
 
     uint32_t aircraftId() const
@@ -366,18 +323,17 @@ public:
      * @param receivedPacket
      * @return int8_t
      */
-    int8_t loadFromBuffer(uint32_t epochSeconds, etl::span<const uint32_t> buffer)
+    int8_t loadFromBuffer(uint32_t epochSeconds, etl::span<uint8_t> pktData, etl::span<const uint8_t> errorFrame)
     {
-        if (buffer.size() != TOTAL_LENGTH_WORDS)
+        if (pktData.size() != TOTAL_LENGTH || errorFrame.size() != TOTAL_LENGTH)
         {
-            // Length must be 7 words
+            // Length must match the 26-byte FLARM frame
             return -2;
         }
-        uint16_t calculatedChecksum = flarmCalculateChecksum(reinterpret_cast<const uint8_t *>(buffer.data()), TOTAL_LENGTH - 2); // -2 becayse we do not want to calculate the CRC
 
-        if ((swapBytes16(buffer[6] & 0xFFFF)) != calculatedChecksum)
+        int corrected = FLARM::Correct(pktData, errorFrame);
+        if (corrected < 0)
         {
-            // Invalid Checksum
             return -1;
         }
 
@@ -387,12 +343,12 @@ public:
         // the packages was scrambled at.
         for (auto offset : {0, -1, -2})
         {
-            epochSeconds += offset;
-            memcpy(&packet, buffer.data(), TOTAL_LENGTH);
+            uint32_t candidateEpoch = epochSeconds + offset;
+            memcpy(&packet, pktData.data(), TOTAL_LENGTH);
             bteaDecode(((uint32_t *)&packet) + 2);
-            scramble(((uint32_t *)&packet), epochSeconds);
+            scramble(((uint32_t *)&packet), candidateEpoch);
 
-            if (packet.flarmTimestampLSBRaw == (epochSeconds & 0x0F))
+            if (packet.flarmTimestampLSBRaw == (candidateEpoch & 0x0F))
             {
                 return 0;
             }
@@ -408,7 +364,7 @@ public:
         scramble(buff32, epochSeconds);
         bteaEncode(buff32 + 2);
 
-        uint16_t calculatedChecksum = flarmCalculateChecksum(buffer, TOTAL_LENGTH - 2); // -2 because we do not want to calculate the CRC
+        uint16_t calculatedChecksum = FLARM::flarmCalculateChecksum(etl::span<const uint8_t>(buffer, TOTAL_LENGTH - 2), TOTAL_LENGTH - 2); // -2 because we do not want to calculate the CRC
         buff32[6] = swapBytes16(calculatedChecksum);
 
         return 0;
@@ -640,20 +596,6 @@ public:
             value -= offset;
         }
         return (negative ? -(int)value : value);
-    }
-
-    uint16_t flarmCalculateChecksum(const uint8_t *flarm_pkt, uint8_t length)
-    {
-        uint16_t crc16 = 0xffff;
-        // Add the Flarm address that is not in the packet see:CountryRegulations
-        crc16 = update_crc_ccitt(crc16, 0x31);
-        crc16 = update_crc_ccitt(crc16, 0xFA);
-        crc16 = update_crc_ccitt(crc16, 0xB6);
-
-        for (uint8_t i = 0; i < length; i++)
-            crc16 = update_crc_ccitt(crc16, (uint8_t)(flarm_pkt[i]));
-
-        return crc16;
     }
 
     inline uint16_t swapBytes16(uint16_t value)

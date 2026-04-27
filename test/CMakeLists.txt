@@ -35,6 +35,7 @@ FetchContent_MakeAvailable(Catch2)
 # These examples use the standard separate compilation
 set(SOURCES_IDIOMATIC_EXAMPLES # Tests
   flarm2024packet_tests.cpp
+  errorCorrect_tests.cpp
 )
 
 string(REPLACE ".cpp" "" BASENAMES_IDIOMATIC_EXAMPLES

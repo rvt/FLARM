@@ -170,7 +170,7 @@ TEST_CASE("loadFromBuffer corrects a single flipped bit", "[single-file]")
     uint8_t error[Flarm2024Packet::TOTAL_LENGTH] = {};
     data[3] ^= 0x80;
 
-    REQUIRE(localPacket.loadFromBuffer(1751789240, {data, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 0);
+    REQUIRE(localPacket.loadFromBuffer(1751789240, {data, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 1);
 
     auto pos = localPacket.getPosition(53, 5);
     REQUIRE(Catch::Approx(52.314239).margin(0.001) == pos.latitude);

@@ -69,7 +69,7 @@ namespace FLARM
       0x8000C0, 0x4000C1, 0x2000C2, 0x1000C3, 0x0800C4, 0x0400C5, 0x0200C6, 0x0100C7,
       0x0080C8, 0x0040C9, 0x0020CA, 0x0010CB, 0x0008CC, 0x0004CD, 0x0002CE, 0x0001CF};
 
-  inline uint16_t flarmCalculateChecksum(etl::span<const uint8_t> flarm_pkt, uint8_t length)
+  uint16_t flarmCalculateChecksum(etl::span<const uint8_t> flarm_pkt, uint8_t length)
   {
     uint16_t crc16 = 0xffff;
     crc16 = update_crc_ccitt(crc16, 0x31);
@@ -84,7 +84,7 @@ namespace FLARM
     return crc16;
   }
 
-  inline uint16_t readChecksum(etl::span<const uint8_t> packet)
+  uint16_t readChecksum(etl::span<const uint8_t> packet)
   {
     if (packet.size() < 2)
     {
@@ -95,7 +95,7 @@ namespace FLARM
     return static_cast<uint16_t>(packet[checksumOffset] << 8) | packet[checksumOffset + 1];
   }
 
-  inline void writeChecksum(etl::span<uint8_t> packet, uint16_t checksum)
+  void writeChecksum(etl::span<uint8_t> packet, uint16_t checksum)
   {
     if (packet.size() < 2)
     {
@@ -107,7 +107,7 @@ namespace FLARM
     packet[checksumOffset + 1] = static_cast<uint8_t>(checksum & 0xFF);
   }
 
-  inline uint16_t packetSyndrome(etl::span<const uint8_t> packet)
+  uint16_t packetSyndrome(etl::span<const uint8_t> packet)
   {
     if (packet.size() < 2)
     {
@@ -129,7 +129,7 @@ namespace FLARM
     return SyndromeBits[bit];
   }
 
-  inline uint8_t FindCRCsyndrome(uint16_t syndr)
+  uint8_t FindCRCsyndrome(uint16_t syndr)
   {
     for (size_t i = 0; i < MAX_PACKET_BITS; ++i)
     {
@@ -163,7 +163,7 @@ namespace FLARM
     byte[byteIdx] ^= mask;
   }
 
-  inline int _Correct(etl::span<uint8_t> pktData, etl::span<const uint8_t> pktErr)
+  int _Correct(etl::span<uint8_t> pktData, etl::span<const uint8_t> pktErr)
   {
     constexpr size_t MAX_BAD_BITS = 6;
     const uint32_t pktSize = pktData.size();
@@ -252,7 +252,7 @@ namespace FLARM
     return -1;
   }
 
-  inline int Correct(etl::span<uint8_t> pktData, etl::span<const uint8_t> pktErr)
+  int Correct(etl::span<uint8_t> pktData, etl::span<const uint8_t> pktErr)
   {
     if (pktData.size() < 2 || pktErr.size() != pktData.size())
     {

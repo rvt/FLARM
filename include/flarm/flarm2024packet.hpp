@@ -350,7 +350,7 @@ public:
 
             if (packet.flarmTimestampLSBRaw == (candidateEpoch & 0x0F))
             {
-                return 0;
+                return corrected;
             }
         }
         return -3;

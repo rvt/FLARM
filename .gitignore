@@ -3,3 +3,4 @@ work
 .idea
 .vscode
 .cache/
+test/

@@ -319,11 +319,12 @@ public:
      * @brief Load packet from buffer. Once the CRC is matched, the result is destructive for the buffer,
      * even when the message was incorrect.
      *
-     * @param epochSeconds
+     * @param epochSeconds Current epoch second on input; overwritten with the
+     * matched packet epoch second on success.
      * @param receivedPacket
      * @return int8_t
      */
-    int8_t loadFromBuffer(uint32_t epochSeconds, etl::span<uint8_t> pktData, etl::span<const uint8_t> errorFrame)
+    int8_t loadFromBuffer(uint32_t &epochSeconds, etl::span<uint8_t> pktData, etl::span<const uint8_t> errorFrame)
     {
         if (pktData.size() != TOTAL_LENGTH || errorFrame.size() != TOTAL_LENGTH)
         {
@@ -350,6 +351,7 @@ public:
 
             if (packet.flarmTimestampLSBRaw == (candidateEpoch & 0x0F))
             {
+                epochSeconds = candidateEpoch;
                 return corrected;
             }
         }

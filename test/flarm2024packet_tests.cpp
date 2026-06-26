@@ -32,10 +32,12 @@ TEST_CASE("selfCheck", "[single-file]")
     uint8_t input[Flarm2024Packet::TOTAL_LENGTH];
     uint8_t error[Flarm2024Packet::TOTAL_LENGTH] = {};
     uint8_t output[Flarm2024Packet::TOTAL_LENGTH] = {};
+    uint32_t epochSeconds = 1751789240;
 
     std::memcpy(input, SelfCheckInput, Flarm2024Packet::TOTAL_LENGTH);
 
-    REQUIRE(localPacket.loadFromBuffer(1751789240, {input, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 0);
+    REQUIRE(localPacket.loadFromBuffer(epochSeconds, {input, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 0);
+    REQUIRE(epochSeconds == 1751789240);
 
     localPacket.writeToBuffer(1751789240, output);
     REQUIRE(0 == std::memcmp(SelfCheckInput, output, Flarm2024Packet::TOTAL_LENGTH));
@@ -168,9 +170,11 @@ TEST_CASE("loadFromBuffer corrects a single flipped bit", "[single-file]")
         0x01, 0xD2, 0xF0, 0x70, 0x2E, 0x4B, 0xED, 0x62, 0x83, 0x76, 0x50, 0xB6,
         0x1C, 0xE3};
     uint8_t error[Flarm2024Packet::TOTAL_LENGTH] = {};
+    uint32_t epochSeconds = 1751789240;
     data[3] ^= 0x80;
 
-    REQUIRE(localPacket.loadFromBuffer(1751789240, {data, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 1);
+    REQUIRE(localPacket.loadFromBuffer(epochSeconds, {data, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 1);
+    REQUIRE(epochSeconds == 1751789240);
 
     auto pos = localPacket.getPosition(53, 5);
     REQUIRE(Catch::Approx(52.314239).margin(0.001) == pos.latitude);
@@ -185,8 +189,10 @@ TEST_CASE("loadFromBuffer accepts a one second epoch offset", "[single-file]")
         0x01, 0xD2, 0xF0, 0x70, 0x2E, 0x4B, 0xED, 0x62, 0x83, 0x76, 0x50, 0xB6,
         0x1C, 0xE3};
     uint8_t error[Flarm2024Packet::TOTAL_LENGTH] = {};
+    uint32_t epochSeconds = 1751789242;
 
-    REQUIRE(localPacket.loadFromBuffer(1751789242, {data, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 0);
+    REQUIRE(localPacket.loadFromBuffer(epochSeconds, {data, Flarm2024Packet::TOTAL_LENGTH}, {error, Flarm2024Packet::TOTAL_LENGTH}) == 0);
+    REQUIRE(epochSeconds == 1751789240);
 
     auto pos = localPacket.getPosition(53, 5);
     REQUIRE(Catch::Approx(52.314239).margin(0.001) == pos.latitude);
